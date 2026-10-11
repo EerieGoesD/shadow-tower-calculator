@@ -140,8 +140,7 @@
   .calc-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   .calc-grid select, .calc-grid input { width: 100%; }
   .bests { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-  .enemy-pic { display: flex; justify-content: center; margin-bottom: 14px; background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
-  .enemy-pic img { display: block; width: 240px; max-width: 100%; height: auto; aspect-ratio: 1 / 1; }
+  .card-pic { float: right; margin: 10px 0 0 12px; visibility: hidden; }
   .footer { display: flex; flex-wrap: wrap; justify-content: flex-end; max-width: 1200px; margin: 8px auto 0; padding: 12px 16px 24px; border-top: 1px solid var(--line); }
   .footer-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
   .flink { font-size: 12px; text-decoration: none; white-space: nowrap; color: var(--footer-link); }
@@ -240,7 +239,6 @@
       <label>MP with nothing equipped<input type="number" id="calcMp" value="0" min="0" step="1"></label>
       <label>SPD with nothing equipped<input type="number" id="calcSpd" value="0" min="0" step="1"></label>
     </div>
-    <div class="enemy-pic" id="enemyPic" style="display:none"><img id="enemyPicImg" alt="" width="230" height="115"></div>
     <div class="bests"><div class="best" id="best"></div><div class="best" id="bestMine"></div></div>
     <p class="note table-title" id="calcProgress"></p>
     <div class="scroll"><table id="calcTable"></table></div>
@@ -818,14 +816,24 @@ function label(it) {
   return `${title(it.name)} (${parts.length ? parts.join(", ") : wgt(it.weight) + " " + unit})`;
 }
 const GEAR_SHOWN = [["shield", "Shield"], ["head", "Head"], ["body", "Body"], ["arms", "Arms"], ["legs", "Legs"], ["amulet", "Amulet"], ["rings", "Rings"], ["bracelets", "Bracelets"]];
-function card(heading, r, empty) {
-  if (!r) return `<div class="k">${heading}</div><div class="n">None</div><div class="d">${empty}</div>`;
+// The game shows Creature Book pictures in a 640x240 menu, where a pixel is half as wide as it is tall.
+function fitPic(img) {
+  const ratio = img.naturalWidth / 2 / img.naturalHeight;
+  let h = 150, w = h * ratio;
+  if (w > 240) { w = 240; h = w / ratio; }
+  img.style.width = Math.round(w) + "px";
+  img.style.height = Math.round(h) + "px";
+  img.style.visibility = "visible";
+}
+function card(heading, r, empty, pic) {
+  const img = pic ? `<img class="card-pic" src="${pic.src}" alt="${esc(pic.alt)}" onload="fitPic(this)" onerror="this.remove()">` : "";
+  if (!r) return `${img}<div class="k">${heading}</div><div class="n">None</div><div class="d">${empty}</div>`;
   const byKey = {};
   GEAR.forEach((s, i) => (byKey[s.key] = r.gear[i]));
   const rows = GEAR_SHOWN.map(([k, name]) => `<span>${name}</span><span>${byKey[k].length ? byKey[k].map(it => esc(label(it))).join(", ") : "—"}</span>`).join("");
   return `<div class="k">${heading}</div><div class="n">${esc(label(r.w))}</div>` +
     `<div class="d">${r.dps.toFixed(1)} damage per second · ${r.dmg} per hit · ${isFinite(r.hits) ? r.hits : "—"} hit${r.hits === 1 ? "" : "s"} to kill</div>` +
-    `<div class="gear">${rows}</div>`;
+    `${img}<div class="gear">${rows}</div>`;
 }
 // Results are kept per enemy and stats (plus inventory for "you have"), so a repeated setup shows instantly.
 const resultsAll = new Map();
@@ -842,17 +850,6 @@ function drawCalc() {
   // nothing is worked out until an enemy is chosen
   const picked = sel.value !== "";
   document.querySelector(".bests").style.display = picked ? "" : "none";
-  // the enemy's picture from the game's Creature Book
-  const pic = document.getElementById("enemyPic");
-  pic.style.display = "none";
-  if (picked) {
-    const pe = calcEnemies[+sel.value];
-    const img = document.getElementById("enemyPicImg");
-    img.alt = title(pe.name);
-    img.onload = () => (pic.style.display = "");
-    img.onerror = () => (pic.style.display = "none");
-    img.src = PIC_BASE + pe.species + ".png";
-  }
   document.getElementById("calcTable").parentElement.style.display = picked ? "" : "none";
   if (!picked) {
     document.getElementById("calcProgress").textContent = "";
@@ -870,7 +867,8 @@ function drawCalc() {
     if (!calcAuto) track("calculation_run");
   }
   if (!resultsMine.has(keyMine)) resultsMine.set(keyMine, bestOverall(DATA.items, DATA.motions, e, base, owned));
-  document.getElementById("best").innerHTML = card("Best gear vs " + esc(title(e.name)), all.best, "");
+  document.getElementById("best").innerHTML = card("Best gear vs " + esc(title(e.name)), all.best, "",
+    { src: PIC_BASE + e.species + ".png", alt: title(e.name) });
   document.getElementById("bestMine").innerHTML = card("Best gear you have", resultsMine.get(keyMine),
     "Tick the weapons and gear you have in the Inventory tab.");
 

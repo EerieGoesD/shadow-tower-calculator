@@ -133,6 +133,11 @@
   .calc-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   .calc-grid select, .calc-grid input { width: 100%; }
   .bests { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .intro { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .intro p { margin: 0 0 8px; }
+  .intro h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 12px 0 6px; }
+  .intro ol { margin: 0; padding-left: 20px; }
+  .intro li + li { margin-top: 4px; }
   .best {
     border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px;
     padding: 14px 16px;
@@ -202,6 +207,15 @@
   </section>
 
   <section id="calc" class="on">
+    <div class="intro">
+      <p>Item and enemy data for Shadow Tower on PlayStation, read from the game's own files, with a calculator that finds the weapon and gear that deal the most damage per second to a chosen enemy.</p>
+      <h2>How to use it</h2>
+      <ol>
+        <li>In the game, take off all your equipment and note your HP, MP and SPD. For HP and MP, use the second number (the maximum). Enter them below.</li>
+        <li>In the Inventory tab, tick the weapons and gear you own.</li>
+        <li>Choose an enemy. "Best gear you have" picks from your inventory, and "Best gear vs" picks from every item in the game.</li>
+      </ol>
+    </div>
     <div class="calc-grid">
       <label>Enemy<select id="calcEnemy"></select></label>
       <label>HP with nothing equipped<input type="number" id="calcHp" value="0" min="0" step="1"></label>
@@ -755,7 +769,8 @@ showUnit();
 // Calculator
 const calcEnemies = DATA.enemies.filter(e => e.hp !== 65535).slice().sort((a, b) => a.name.localeCompare(b.name) || a.hp - b.hp);
 const sel = document.getElementById("calcEnemy");
-sel.innerHTML = calcEnemies.map((e, i) => `<option value="${i}">${esc(title(e.name))} · ${e.hp} HP</option>`).join("");
+sel.innerHTML = '<option value="" selected disabled>Choose an enemy</option>' +
+  calcEnemies.map((e, i) => `<option value="${i}">${esc(title(e.name))} · ${e.hp} HP</option>`).join("");
 // Items that share a name get their differing stats added so you can tell them apart.
 const sameName = {};
 DATA.items.forEach(it => (sameName[it.name] = sameName[it.name] || []).push(it));
@@ -788,6 +803,15 @@ const readBase = () => ({
 });
 function drawCalc() {
   const run = ++calcRun;
+  // nothing is worked out until an enemy is chosen
+  const picked = sel.value !== "";
+  document.querySelector(".bests").style.display = picked ? "" : "none";
+  document.getElementById("calcTable").parentElement.style.display = picked ? "" : "none";
+  if (!picked) {
+    document.getElementById("calcProgress").textContent = "";
+    document.getElementById("calcTable").innerHTML = "";
+    return;
+  }
   const e = calcEnemies[+sel.value];
   const base = readBase();
   const keyAll = [sel.value, base.hp, base.mp, base.spd].join("|");
